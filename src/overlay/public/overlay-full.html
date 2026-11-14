@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lumen — OBS Fullscreen Scripture Overlay</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #090d16;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 64px;
+    }
+
+    .fullscreen-container {
+      width: 100%;
+      max-width: 1300px;
+      text-align: center;
+      opacity: 0;
+      transform: scale(0.96);
+      transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+
+    .fullscreen-container.active {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .reference-title {
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #d4af37;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .translation-pill {
+      font-size: 16px;
+      font-weight: 700;
+      background: rgba(212, 175, 55, 0.2);
+      color: #f4edc9;
+      border: 1px solid rgba(212, 175, 55, 0.5);
+      padding: 4px 14px;
+      border-radius: 999px;
+    }
+
+    .verse-body {
+      font-family: "Georgia", serif;
+      font-size: 42px;
+      line-height: 1.5;
+      color: #ffffff;
+      text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+    }
+  </style>
+</head>
+<body>
+
+  <div id="container" class="fullscreen-container">
+    <div class="reference-title">
+      <span id="reference">Scripture Reference</span>
+      <span id="translation" class="translation-pill">KJV</span>
+    </div>
+    <div id="text" class="verse-body">
+      ...
+    </div>
+  </div>
+
+  <script>
+    const container = document.getElementById('container');
+    const refEl = document.getElementById('reference');
+    const transEl = document.getElementById('translation');
+    const textEl = document.getElementById('text');
+
+    let hideTimer = null;
+
+    function connectWs() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'verse:show') {
+            displayVerse(msg.data);
+          } else if (msg.type === 'verse:clear' || msg.type === 'verse:hide') {
+            hideVerse();
+          }
+        } catch (err) {
+          console.error('WS parse error:', err);
+        }
+      };
+
+      ws.onclose = () => {
+        setTimeout(connectWs, 2000);
+      };
+    }
+
+    function displayVerse(data) {
+      refEl.textContent = data.reference;
+      transEl.textContent = data.translation || 'DEFAULT';
+      textEl.textContent = data.text;
+
+      container.classList.add('active');
+
+      if (hideTimer) clearTimeout(hideTimer);
+      if (data.duration && data.duration > 0) {
+        hideTimer = setTimeout(() => {
+          hideVerse();
+        }, data.duration);
+      }
+    }
+
+    function hideVerse() {
+      container.classList.remove('active');
+    }
+
+    connectWs();
+  </script>
+</body>
+</html>

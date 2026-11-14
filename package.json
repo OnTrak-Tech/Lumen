@@ -1,0 +1,48 @@
+{
+  "name": "lumen",
+  "version": "0.1.0",
+  "description": "Real-time Bible verse display for live sermons, integrated with OBS Studio",
+  "main": "dist-electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev:server": "tsx src/overlay/server.ts",
+    "dev:vite": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:vite\"",
+    "build": "tsc && vite build",
+    "test:detector": "tsx test/test-detector.ts"
+  },
+  "keywords": [
+    "bible",
+    "obs",
+    "speech-recognition",
+    "church",
+    "livestream"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "lucide-react": "^0.460.0",
+    "obs-websocket-js": "^5.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/ws": "^8.5.13",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
