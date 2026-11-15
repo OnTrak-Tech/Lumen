@@ -30,13 +30,26 @@ export class VerseDetector {
   public feed(segment: TranscriptSegment): DetectedVerse | null {
     if (!segment.text) return null;
 
-    // Append to rolling buffer (keep up to ~500 characters)
     this.buffer += ' ' + segment.text;
+
+    // Split on sentence boundaries so fragments from different sentences can't bleed together
+    const sentences = this.buffer.split(/(?<=[.?!])\s+/);
+
+    // Keep the last (possibly incomplete) sentence as the new buffer
+    this.buffer = sentences[sentences.length - 1];
     if (this.buffer.length > 500) {
       this.buffer = this.buffer.slice(this.buffer.length - 400);
     }
 
-    return this.detectInText(this.buffer);
+    // Run detection on each complete sentence (all but the trailing incomplete one)
+    const completeSentences = sentences.slice(0, -1);
+    for (const sentence of completeSentences) {
+      const result = this.detectInText(sentence.trim());
+      if (result) return result;
+    }
+
+    // Also check the current incomplete buffer (catches mid-sentence references like "John 3:16")
+    return this.detectInText(this.buffer.trim());
   }
 
   /**
@@ -82,7 +95,7 @@ export class VerseDetector {
       }
     }
 
-    // Pattern 2: Standard "Book X:Y" or "Book X:Y-Z"
+    // Pattern 2A: Standard "Book X:Y" or "Book X:Y-Z" (colon notation)
     // e.g. "john 3:16", "romans 8:28", "1 corinthians 13:4-8"
     const standardPattern = /([1-3]?\s*[a-z]+)\s+(\d{1,3}):(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?/gi;
 
@@ -112,39 +125,125 @@ export class VerseDetector {
       }
     }
 
-    // Pattern 3: "Psalm X" or "Psalms X:Y"
-    const psalmPattern = /\b(?:psalm|psalms)\s+(\d{1,3})(?:\s+verse\s+(\d{1,3}))?/gi;
+    // Pattern 2B: "Book X verse Y" (omitted "chapter")
+    // e.g. "john 10 verse 30", "romans 8 verse 28", "genesis 21, verse 3"
+    const bookVersePattern = /([1-3]?\s*[a-z]+)\s+(\d{1,3})\s*,?\s*verse[s]?\s+(\d{1,3})(?:\s+(?:through|to|thru|-)\s+(\d{1,3}))?/gi;
+    while ((match = bookVersePattern.exec(normalized)) !== null) {
+      const bookCandidate = match[1].trim();
+      const book = resolveBook(bookCandidate);
+      if (book) {
+        const chapter = parseInt(match[2], 10);
+        const verseStart = parseInt(match[3], 10);
+        const verseEnd = match[4] ? parseInt(match[4], 10) : undefined;
+
+        if (this.isValidVerse(book, chapter, verseStart, verseEnd)) {
+          const detected = this.createDetectedVerse(
+            book.name,
+            chapter,
+            verseStart,
+            verseEnd,
+            translation,
+            0.94,
+            match[0]
+          );
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
+        }
+      }
+    }
+
+    // Pattern 2C: "Book chapter X Y" (omitted "verse")
+    // e.g. "john chapter 10 30"
+    const bookChapterSpacePattern = /([1-3]?\s*[a-z]+)\s+chapter\s+(\d{1,3})\s+(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?/gi;
+    while ((match = bookChapterSpacePattern.exec(normalized)) !== null) {
+      const bookCandidate = match[1].trim();
+      const book = resolveBook(bookCandidate);
+      if (book) {
+        const chapter = parseInt(match[2], 10);
+        const verseStart = parseInt(match[3], 10);
+        const verseEnd = match[4] ? parseInt(match[4], 10) : undefined;
+
+        if (this.isValidVerse(book, chapter, verseStart, verseEnd)) {
+          const detected = this.createDetectedVerse(
+            book.name,
+            chapter,
+            verseStart,
+            verseEnd,
+            translation,
+            0.94,
+            match[0]
+          );
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
+        }
+      }
+    }
+
+    // Pattern 2D: Pure Space-Separated "Book X Y" (e.g. "John 10 30", "Romans 8 28", "Matthew 6 33", "1 Corinthians 13 4")
+    const spacePattern = /([1-3]?\s*[a-z]+)\s+(\d{1,3})\s+(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?/gi;
+    while ((match = spacePattern.exec(normalized)) !== null) {
+      const bookCandidate = match[1].trim();
+      const book = resolveBook(bookCandidate);
+      if (book) {
+        const chapter = parseInt(match[2], 10);
+        const verseStart = parseInt(match[3], 10);
+        const verseEnd = match[4] ? parseInt(match[4], 10) : undefined;
+
+        if (this.isValidVerse(book, chapter, verseStart, verseEnd)) {
+          const detected = this.createDetectedVerse(
+            book.name,
+            chapter,
+            verseStart,
+            verseEnd,
+            translation,
+            0.93,
+            match[0]
+          );
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
+        }
+      }
+    }
+
+    // Pattern 3: "Psalm X:Y" or "Psalm X verse Y" — requires a verse number, bare "Psalm X" only sets context
+    const psalmPattern = /\b(?:psalm|psalms)\s+(\d{1,3})(?:[,:]?\s*verse\s+(\d{1,3}))?/gi;
     while ((match = psalmPattern.exec(normalized)) !== null) {
       const chapter = parseInt(match[1], 10);
-      const verseStart = match[2] ? parseInt(match[2], 10) : 1;
       const book = BOOK_ALIAS_MAP.get('psalms')!;
 
       if (chapter >= 1 && chapter <= 150) {
-        const detected = this.createDetectedVerse(
-          book.name,
-          chapter,
-          verseStart,
-          match[2] ? undefined : 6,
-          translation,
-          0.90,
-          match[0]
-        );
-        if (this.checkDedup(detected)) {
-          this.updateContext(detected);
-          return detected;
+        if (match[2]) {
+          // Verse explicitly mentioned — detect and display
+          const verseStart = parseInt(match[2], 10);
+          const detected = this.createDetectedVerse(
+            book.name, chapter, verseStart, undefined, translation, 0.90, match[0]
+          );
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
+        } else {
+          // No verse mentioned — set context only so follow-up "verse X" resolves correctly
+          this.updateContext(this.createDetectedVerse(
+            book.name, chapter, 1, undefined, translation, 0, match[0]
+          ));
         }
       }
     }
 
     // STEP 2: CONTEXTUAL PASSAGE RESOLUTION (Active Passage Memory)
-    // If no full book reference was matched, check if preacher is jumping verses within current passage
     if (this.isContextActive()) {
       const context = this.activeContext!;
       const book = BOOK_ALIAS_MAP.get(context.book.toLowerCase());
 
       if (book) {
         // Pattern 4A: Relative "next verse"
-        // e.g. "read the next verse", "next verse says", "continue to the next verse"
         const nextVersePattern = /\b(?:read\s+)?(?:the\s+)?next\s+verse\b/i;
         if (nextVersePattern.test(normalized)) {
           const nextVerseNum = context.lastVerse + 1;
@@ -167,7 +266,6 @@ export class VerseDetector {
         }
 
         // Pattern 4B: Specific verse jump within active chapter
-        // e.g. "verse 2", "look at verse 12", "go to verse 12", "jump to verse 18", "in verse 4"
         const verseJumpPattern = /\b(?:look\s+at|jump\s+to|skip\s+to|go\s+to|turn\s+to|read|and|in|now)?\s*verse\s+(\d{1,3})(?:\s+(?:through|to|thru|-)\s+(\d{1,3}))?\b/gi;
         let jumpMatch: RegExpExecArray | null;
 
@@ -194,7 +292,6 @@ export class VerseDetector {
         }
 
         // Pattern 4C: Translation switch on active verse without repeating the verse
-        // e.g. "read that in the amplified" or "give me amplified"
         if (translation && translation !== context.translation) {
           const detected = this.createDetectedVerse(
             context.book,

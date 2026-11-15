@@ -1,9 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { STTManager } from '../core/stt/stt-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +40,29 @@ let currentOverlayVerse: any = null;
 // Track active WebSocket clients
 const clients = new Set<WebSocket>();
 
+// --- STT Manager (Deepgram primary, Whisper fallback) ---
+const deepgramApiKey = process.env.DEEPGRAM_API_KEY;
+if (!deepgramApiKey || deepgramApiKey === 'your_deepgram_api_key_here') {
+  console.warn('[Lumen] ⚠️  DEEPGRAM_API_KEY not set — add it to your .env file. STT will not start.');
+}
+
+const sttManager = deepgramApiKey && deepgramApiKey !== 'your_deepgram_api_key_here'
+  ? new STTManager({ deepgramApiKey })
+  : null;
+
+sttManager?.on('transcript', (result) => {
+  broadcast({ type: 'stt:transcript', data: result });
+});
+
+sttManager?.on('engine-switch', (info) => {
+  broadcast({ type: 'stt:engine', data: info });
+  console.log(`[STTManager] Engine switch:`, info);
+});
+
+sttManager?.on('status', (info) => {
+  broadcast({ type: 'stt:status', data: info });
+});
+
 wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[Lumen Server] New display client connected (${clients.size} total)`);
@@ -68,6 +93,25 @@ function broadcast(message: object) {
     }
   }
 }
+
+// STT control endpoints
+app.post('/api/stt/start', (req, res) => {
+  if (!sttManager) return res.status(503).json({ error: 'STT not configured — set DEEPGRAM_API_KEY in .env' });
+  sttManager.start();
+  res.json({ success: true, engine: sttManager.engine });
+});
+
+app.post('/api/stt/stop', (req, res) => {
+  sttManager?.stop();
+  res.json({ success: true });
+});
+
+app.get('/api/stt/status', (req, res) => {
+  res.json({
+    configured: !!sttManager,
+    engine: sttManager?.engine ?? 'none',
+  });
+});
 
 // Health check
 app.get('/health', (req, res) => {

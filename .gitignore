@@ -3,3 +3,7 @@ dist
 dist-electron
 .DS_Store
 *.log
+
+# Environment variables — never commit API keys
+.env
+.env.local

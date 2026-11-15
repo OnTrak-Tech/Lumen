@@ -1,3 +1,5 @@
+import { resolveBook } from './book-names';
+
 const SMALL_NUMBERS: Record<string, number> = {
   zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5,
   six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
@@ -37,7 +39,7 @@ const ORDINALS: Record<string, number> = {
 };
 
 /**
- * Converts a sequence of number words into a number (e.g. "one hundred and fifty", "twenty three")
+ * Converts a sequence of number words into a number (e.g. "one hundred and fifty", "twenty three", "thirty")
  */
 export function wordsToNumber(phrase: string): number | null {
   const clean = phrase.toLowerCase().replace(/-/g, ' ').replace(/\band\b/g, ' ').trim();
@@ -83,7 +85,8 @@ export function wordsToNumber(phrase: string): number | null {
 /**
  * Normalizes speech transcript:
  * - standardizes lower case
- * - replaces common spoken word numbers following "chapter", "verse", etc.
+ * - converts word numbers after "chapter" and "verse"
+ * - converts spoken word numbers following Bible book names (e.g. "john ten thirty" -> "john 10 30")
  * - removes filler words
  */
 export function normalizeTranscript(text: string): string {
@@ -91,6 +94,14 @@ export function normalizeTranscript(text: string): string {
 
   // Remove common verbal fillers
   lower = lower.replace(/\b(um|uh|er|ah)\b/g, ' ');
+
+  // Ordinal replacements for book prefixes (e.g. "first corinthians" -> "1 corinthians")
+  lower = lower.replace(/\bfirst\s+/g, '1 ');
+  lower = lower.replace(/\b1st\s+/g, '1 ');
+  lower = lower.replace(/\bsecond\s+/g, '2 ');
+  lower = lower.replace(/\b2nd\s+/g, '2 ');
+  lower = lower.replace(/\bthird\s+/g, '3 ');
+  lower = lower.replace(/\b3rd\s+/g, '3 ');
 
   // "chapter three verse sixteen" -> "chapter 3 verse 16"
   lower = lower.replace(/\bchapter\s+([a-z\s-]+?)(?=\s+(?:verse|verses|to|through|and|$|[.,;]))/g, (match, words) => {
@@ -110,13 +121,41 @@ export function normalizeTranscript(text: string): string {
     return num !== null ? `verse ${num}` : match;
   });
 
-  // Ordinal replacements for book prefixes (e.g. "first corinthians" -> "1 corinthians")
-  lower = lower.replace(/\bfirst\s+/g, '1 ');
-  lower = lower.replace(/\b1st\s+/g, '1 ');
-  lower = lower.replace(/\bsecond\s+/g, '2 ');
-  lower = lower.replace(/\b2nd\s+/g, '2 ');
-  lower = lower.replace(/\bthird\s+/g, '3 ');
-  lower = lower.replace(/\b3rd\s+/g, '3 ');
+  // Split STT-concatenated chapter+verse numbers (e.g. "john 1010" -> "john 10 10", "john 316" -> "john 3 16")
+  // Only applies when digits are NOT followed by punctuation or "verse" (those are handled by other patterns)
+  lower = lower.replace(/([1-3]?\s*[a-z]+)\s+(\d{2,6})(?!\s*[,.:])(?!\s+verse)/g, (match, bookCandidate, digits) => {
+    const book = resolveBook(bookCandidate.trim());
+    if (!book) return match;
+    // Try all splits, prefer the one with the largest valid chapter (greedy chapter)
+    let best: { ch: number; v: number } | null = null;
+    for (let i = 1; i < digits.length; i++) {
+      const ch = parseInt(digits.slice(0, i), 10);
+      const v = parseInt(digits.slice(i), 10);
+      if (ch >= 1 && ch <= book.chapters && v >= 1 && v <= 176) {
+        if (!best || ch > best.ch) best = { ch, v };
+      }
+    }
+    if (best) return `${bookCandidate} ${best.ch} ${best.v}`;
+    return match;
+  });
+
+  // Convert spoken word numbers following Bible books (e.g. "john ten thirty" -> "john 10 30")
+  const numWordPattern = '(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)';
+  const compoundNumPattern = `${numWordPattern}(?:\\s*(?:-|and)?\\s*${numWordPattern})?`;
+
+  const spokenBookNumRegex = new RegExp(`([1-3]?\\s*[a-z]+)\\s+(${compoundNumPattern})\\s+(${compoundNumPattern})`, 'gi');
+
+  lower = lower.replace(spokenBookNumRegex, (match, bookCandidate, numWord1, numWord2) => {
+    const book = resolveBook(bookCandidate.trim());
+    if (book) {
+      const ch = wordsToNumber(numWord1);
+      const v = wordsToNumber(numWord2);
+      if (ch !== null && v !== null && ch >= 1 && ch <= book.chapters) {
+        return `${bookCandidate} ${ch} ${v}`;
+      }
+    }
+    return match;
+  });
 
   return lower.replace(/\s+/g, ' ').trim();
 }

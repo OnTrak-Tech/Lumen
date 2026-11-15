@@ -15,6 +15,7 @@ export default function App() {
   const [mode, setMode] = useState<'approve' | 'auto' | 'manual'>('approve');
   const [detectedVerse, setDetectedVerse] = useState<DetectedVerse | null>(null);
   const [versePreview, setVersePreview] = useState<VerseData | null>(null);
+  const [sttEngine, setSttEngine] = useState<'deepgram' | 'whisper' | 'none'>('none');
 
   // Active Stage LED Wall state
   const [activeStageVerse, setActiveStageVerse] = useState<VerseData | null>(null);
@@ -31,6 +32,7 @@ export default function App() {
   const recognitionRef = useRef<any>(null);
   const timerIntervalRef = useRef<any>(null);
   const speechClearTimerRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const STAGE_MAX_SECONDS = 300; // 5 minutes max on LED wall
   const SPEECH_AUTO_CLEAR_MS = 20000; // 20 seconds auto-clear for speech monitor
@@ -79,7 +81,42 @@ export default function App() {
     }, SPEECH_AUTO_CLEAR_MS);
   };
 
-  // Setup Web Speech API if supported in browser
+  // Connect to server WebSocket for STT transcripts and engine status
+  useEffect(() => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}`);
+    wsRef.current = ws;
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'stt:transcript') {
+          const { text, isFinal } = msg.data;
+          resetSpeechClearTimer();
+          if (isFinal) {
+            setFinalizedSpeech((prev) => {
+              const combined = (prev ? prev + ' ' : '') + text;
+              return combined.split(/\s+/).filter(Boolean).slice(-25).join(' ');
+            });
+            setInterimSpeech('');
+          } else {
+            setInterimSpeech(text);
+          }
+          checkVerseDetection(text);
+        } else if (msg.type === 'stt:engine') {
+          setSttEngine(msg.data.to);
+        }
+      } catch { /* ignore malformed */ }
+    };
+
+    ws.onclose = () => setTimeout(() => {
+      // reconnect handled by browser
+    }, 2000);
+
+    return () => ws.close();
+  }, []);
+
+  // Setup Web Speech API as last-resort fallback (when server STT is not configured)
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -131,21 +168,31 @@ export default function App() {
     }
   }, [isListening, mode, defaultTranslation]);
 
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      alert('Speech Recognition is not available on this browser. Use the speech simulator input below to test live phrases!');
-      return;
-    }
-
+  const toggleListening = async () => {
     if (isListening) {
-      recognitionRef.current.stop();
+      await fetch('http://localhost:3000/api/stt/stop', { method: 'POST' }).catch(() => {});
+      recognitionRef.current?.stop();
       setIsListening(false);
     } else {
-      try {
-        recognitionRef.current.start();
+      // Try server-side STT first (Deepgram + Whisper fallback)
+      const res = await fetch('http://localhost:3000/api/stt/status').catch(() => null);
+      const status = res ? await res.json().catch(() => null) : null;
+
+      if (status?.configured) {
+        await fetch('http://localhost:3000/api/stt/start', { method: 'POST' }).catch(() => {});
         setIsListening(true);
-      } catch (err) {
-        console.error('Failed to start speech recognition:', err);
+      } else {
+        // Fall back to Web Speech API
+        if (!recognitionRef.current) {
+          alert('Speech Recognition is not available. Set DEEPGRAM_API_KEY in .env or use a supported browser.');
+          return;
+        }
+        try {
+          recognitionRef.current.start();
+          setIsListening(true);
+        } catch (err) {
+          console.error('Failed to start speech recognition:', err);
+        }
       }
     }
   };
@@ -287,9 +334,6 @@ export default function App() {
       {/* Top Header */}
       <header className="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur px-6 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center font-bold text-amber-400 shadow-inner">
-            L
-          </div>
           <div>
             <h1 className="font-bold text-base tracking-tight flex items-center gap-2">
               Lumen <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Stage LED Engine</span>
@@ -306,12 +350,18 @@ export default function App() {
               onClick={toggleListening}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
                 isListening
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 animate-pulse'
+                  ? sttEngine === 'whisper'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 animate-pulse'
+                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 animate-pulse'
                   : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
               }`}
             >
               {isListening ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
-              {isListening ? 'Listening Live' : 'Start Mic'}
+              {isListening
+                ? sttEngine === 'whisper'
+                  ? 'Listening (Offline)'
+                  : 'Listening Live'
+                : 'Start Mic'}
             </button>
           </div>
 
@@ -319,7 +369,7 @@ export default function App() {
           <div className="flex items-center gap-2">
             <span className="text-slate-400 text-xs">Mode:</span>
             <div className="inline-flex rounded-lg bg-slate-800/90 p-0.5 border border-slate-700/80 text-xs">
-              {(['approve', 'auto', 'manual'] as const).map((m) => (
+              {(['auto', 'manual'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
@@ -334,7 +384,7 @@ export default function App() {
           </div>
 
           {/* Default Translation */}
-          <div className="flex items-center gap-2">
+          {/* <div className="flex items-center gap-2">
             <span className="text-slate-400 text-xs">Default:</span>
             <select
               value={defaultTranslation}
@@ -345,7 +395,7 @@ export default function App() {
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
-          </div>
+          </div> */}
         </div>
       </header>
 
