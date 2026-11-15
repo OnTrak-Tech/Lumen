@@ -8,6 +8,15 @@ export interface DetectedVerse {
   confidence: number;
   rawText: string;
   timestamp: number;
+  isContextual?: boolean; // Flag indicating detection inferred from active passage context
+}
+
+export interface ActivePassageContext {
+  book: string;
+  chapter: number;
+  lastVerse: number;
+  translation?: string;
+  timestamp: number;
 }
 
 export interface TranscriptSegment {
@@ -39,7 +48,7 @@ export interface DisplayVersePayload {
 
 export interface AppSettings {
   defaultTranslation: string;
-  displayDuration: number; // in seconds
+  displayDuration: number;
   mode: 'auto' | 'approve' | 'manual';
   confidenceThreshold: number;
   obs: {

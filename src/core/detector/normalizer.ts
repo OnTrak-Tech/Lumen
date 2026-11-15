@@ -44,7 +44,6 @@ export function wordsToNumber(phrase: string): number | null {
   const tokens = clean.split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return null;
 
-  // Check single ordinal or direct digit
   if (tokens.length === 1) {
     if (/^\d+$/.test(tokens[0])) return parseInt(tokens[0], 10);
     if (ORDINALS[tokens[0]] !== undefined) return ORDINALS[tokens[0]];
@@ -85,7 +84,7 @@ export function wordsToNumber(phrase: string): number | null {
  * Normalizes speech transcript:
  * - standardizes lower case
  * - replaces common spoken word numbers following "chapter", "verse", etc.
- * - removes filler words ("um", "uh", "amen", "hallelujah")
+ * - removes filler words
  */
 export function normalizeTranscript(text: string): string {
   let lower = text.toLowerCase();
@@ -93,27 +92,25 @@ export function normalizeTranscript(text: string): string {
   // Remove common verbal fillers
   lower = lower.replace(/\b(um|uh|er|ah)\b/g, ' ');
 
-  // Standardize common phrases:
   // "chapter three verse sixteen" -> "chapter 3 verse 16"
-  // "chapter twenty three" -> "chapter 23"
   lower = lower.replace(/\bchapter\s+([a-z\s-]+?)(?=\s+(?:verse|verses|to|through|and|$|[.,;]))/g, (match, words) => {
     const num = wordsToNumber(words);
     return num !== null ? `chapter ${num}` : match;
   });
 
+  // "verse two", "verses one through five", "verse twelve"
   lower = lower.replace(/\bverse[s]?\s+([a-z\s-]+?)(?=\s+(?:to|through|thru|-|and|$|[.,;]))/g, (match, words) => {
     const num = wordsToNumber(words);
     return num !== null ? `verse ${num}` : match;
   });
 
-  // Handle trailing verse number word at end of string or before punctuation
+  // Trailing "verse two" at end of string or before punctuation
   lower = lower.replace(/\bverse\s+([a-z\s-]+)$/g, (match, words) => {
     const num = wordsToNumber(words);
     return num !== null ? `verse ${num}` : match;
   });
 
-  // "1st" / "first" book names:
-  // e.g. "first corinthians" -> "1 corinthians", "second kings" -> "2 kings", "third john" -> "3 john"
+  // Ordinal replacements for book prefixes (e.g. "first corinthians" -> "1 corinthians")
   lower = lower.replace(/\bfirst\s+/g, '1 ');
   lower = lower.replace(/\b1st\s+/g, '1 ');
   lower = lower.replace(/\bsecond\s+/g, '2 ');
@@ -121,6 +118,5 @@ export function normalizeTranscript(text: string): string {
   lower = lower.replace(/\bthird\s+/g, '3 ');
   lower = lower.replace(/\b3rd\s+/g, '3 ');
 
-  // Clean extra spaces
   return lower.replace(/\s+/g, ' ').trim();
 }

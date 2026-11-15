@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient matching the mountain sunset/stage vibe -->
+    <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="35%" stop-color="#38bdf8" />
+      <stop offset="65%" stop-color="#fb923c" />
+      <stop offset="85%" stop-color="#ea580c" />
+      <stop offset="100%" stop-color="#701a75" />
+    </linearGradient>
+
+    <!-- Mountain silhouettes -->
+    <linearGradient id="mountain1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#831843" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#4c0519" stop-opacity="0.95" />
+    </linearGradient>
+
+    <linearGradient id="mountain2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3b0764" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#1e1b4b" stop-opacity="1" />
+    </linearGradient>
+
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Sky Background -->
+  <rect width="1920" height="1080" fill="url(#skyGrad)" />
+
+  <!-- Mountain Ranges Silhouette -->
+  <path d="M0,740 Q280,620 540,690 T1040,640 T1500,680 T1920,620 L1920,1080 L0,1080 Z" fill="url(#mountain1)" />
+  <path d="M0,820 Q320,720 620,770 T1180,740 T1680,790 T1920,750 L1920,1080 L0,1080 Z" fill="url(#mountain2)" />
+
+  <!-- Center Sermon Series Branding (Matching user's photo aesthetic) -->
+  <g text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+    <!-- Church Mark / Top badge -->
+    <circle cx="960" cy="400" r="32" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.85" />
+    <text x="960" y="408" font-size="18" font-weight="800" fill="#ffffff" letter-spacing="2">LC</text>
+
+    <!-- Main Sermon Series Title -->
+    <text x="960" y="520" font-size="76" font-weight="900" fill="#ffffff" letter-spacing="6" filter="url(#softGlow)">
+      JESUS CHANGES LIVES
+    </text>
+
+    <!-- Subtitle / Motto -->
+    <text x="960" y="575" font-size="22" font-weight="700" fill="#fef08a" letter-spacing="4" opacity="0.9">
+      LOVE GOD • LOVE PEOPLE • CHANGE THE WORLD
+    </text>
+  </g>
+</svg>

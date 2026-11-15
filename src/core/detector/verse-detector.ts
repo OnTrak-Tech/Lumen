@@ -1,4 +1,4 @@
-import { DetectedVerse, TranscriptSegment } from './types';
+import { DetectedVerse, TranscriptSegment, ActivePassageContext } from './types';
 import { resolveBook, BOOK_ALIAS_MAP, BookInfo } from './book-names';
 import { normalizeTranscript } from './normalizer';
 import { detectTranslation } from './translation-detector';
@@ -6,18 +6,22 @@ import { detectTranslation } from './translation-detector';
 export class VerseDetector {
   private buffer: string = '';
   private lastDetectedVerse: { key: string; timestamp: number } | null = null;
-  private dedupWindowMs: number = 30000; // 30 seconds
+  private dedupWindowMs: number = 20000; // 20 seconds dedup
+  private activeContext: ActivePassageContext | null = null;
+  private contextExpiryMs: number = 5 * 60 * 1000; // 5 minutes context memory
 
-  constructor(dedupWindowMs = 30000) {
+  constructor(dedupWindowMs = 20000, contextExpiryMs = 5 * 60 * 1000) {
     this.dedupWindowMs = dedupWindowMs;
+    this.contextExpiryMs = contextExpiryMs;
   }
 
   /**
-   * Reset detector state
+   * Reset detector state and passage memory
    */
   public reset(): void {
     this.buffer = '';
     this.lastDetectedVerse = null;
+    this.activeContext = null;
   }
 
   /**
@@ -41,14 +45,13 @@ export class VerseDetector {
   public detectInText(rawText: string): DetectedVerse | null {
     const normalized = normalizeTranscript(rawText);
 
-    // Look for translation in the whole text
+    // Look for explicit translation request in the text
     const translationMatch = detectTranslation(rawText) || detectTranslation(normalized);
     const translation = translationMatch ? translationMatch.translation : undefined;
 
-    // Build regex pattern matching book names
-    // Try each pattern from most specific to general
+    // STEP 1: Attempt full reference detection (Book + Chapter + Verse)
 
-    // Pattern 1: Spoken "chapter X verse Y (through Z)"
+    // Pattern 1: Spoken "Book chapter X verse Y (through Z)"
     // e.g., "matthew chapter 1 verse 1", "john chapter 3 verse 16", "romans chapter 8 verse 28 through 30"
     const spokenPattern = /([1-3]?\s*[a-z]+)\s+chapter\s+(\d{1,3})\s+verse[s]?\s+(\d{1,3})(?:\s+(?:through|to|thru|-)\s+(\d{1,3}))?/gi;
     let match: RegExpExecArray | null;
@@ -71,7 +74,10 @@ export class VerseDetector {
             0.95,
             match[0]
           );
-          if (this.checkDedup(detected)) return detected;
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
         }
       }
     }
@@ -98,17 +104,19 @@ export class VerseDetector {
             0.96,
             match[0]
           );
-          if (this.checkDedup(detected)) return detected;
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
         }
       }
     }
 
     // Pattern 3: "Psalm X" or "Psalms X:Y"
-    // Psalms are frequently called "Psalm 23" or "the 23rd psalm" (normalizer converts to psalm 23)
     const psalmPattern = /\b(?:psalm|psalms)\s+(\d{1,3})(?:\s+verse\s+(\d{1,3}))?/gi;
     while ((match = psalmPattern.exec(normalized)) !== null) {
       const chapter = parseInt(match[1], 10);
-      const verseStart = match[2] ? parseInt(match[2], 10) : 1; // Default to verse 1 if just Psalm 23
+      const verseStart = match[2] ? parseInt(match[2], 10) : 1;
       const book = BOOK_ALIAS_MAP.get('psalms')!;
 
       if (chapter >= 1 && chapter <= 150) {
@@ -116,21 +124,118 @@ export class VerseDetector {
           book.name,
           chapter,
           verseStart,
-          match[2] ? undefined : 6, // If whole Psalm 23, verse 1-6
+          match[2] ? undefined : 6,
           translation,
           0.90,
           match[0]
         );
-        if (this.checkDedup(detected)) return detected;
+        if (this.checkDedup(detected)) {
+          this.updateContext(detected);
+          return detected;
+        }
+      }
+    }
+
+    // STEP 2: CONTEXTUAL PASSAGE RESOLUTION (Active Passage Memory)
+    // If no full book reference was matched, check if preacher is jumping verses within current passage
+    if (this.isContextActive()) {
+      const context = this.activeContext!;
+      const book = BOOK_ALIAS_MAP.get(context.book.toLowerCase());
+
+      if (book) {
+        // Pattern 4A: Relative "next verse"
+        // e.g. "read the next verse", "next verse says", "continue to the next verse"
+        const nextVersePattern = /\b(?:read\s+)?(?:the\s+)?next\s+verse\b/i;
+        if (nextVersePattern.test(normalized)) {
+          const nextVerseNum = context.lastVerse + 1;
+          if (this.isValidVerse(book, context.chapter, nextVerseNum)) {
+            const detected = this.createDetectedVerse(
+              context.book,
+              context.chapter,
+              nextVerseNum,
+              undefined,
+              translation || context.translation,
+              0.92,
+              'next verse',
+              true
+            );
+            if (this.checkDedup(detected)) {
+              this.updateContext(detected);
+              return detected;
+            }
+          }
+        }
+
+        // Pattern 4B: Specific verse jump within active chapter
+        // e.g. "verse 2", "look at verse 12", "go to verse 12", "jump to verse 18", "in verse 4"
+        const verseJumpPattern = /\b(?:look\s+at|jump\s+to|skip\s+to|go\s+to|turn\s+to|read|and|in|now)?\s*verse\s+(\d{1,3})(?:\s+(?:through|to|thru|-)\s+(\d{1,3}))?\b/gi;
+        let jumpMatch: RegExpExecArray | null;
+
+        while ((jumpMatch = verseJumpPattern.exec(normalized)) !== null) {
+          const verseStart = parseInt(jumpMatch[1], 10);
+          const verseEnd = jumpMatch[2] ? parseInt(jumpMatch[2], 10) : undefined;
+
+          if (this.isValidVerse(book, context.chapter, verseStart, verseEnd)) {
+            const detected = this.createDetectedVerse(
+              context.book,
+              context.chapter,
+              verseStart,
+              verseEnd,
+              translation || context.translation,
+              0.93,
+              jumpMatch[0],
+              true
+            );
+            if (this.checkDedup(detected)) {
+              this.updateContext(detected);
+              return detected;
+            }
+          }
+        }
+
+        // Pattern 4C: Translation switch on active verse without repeating the verse
+        // e.g. "read that in the amplified" or "give me amplified"
+        if (translation && translation !== context.translation) {
+          const detected = this.createDetectedVerse(
+            context.book,
+            context.chapter,
+            context.lastVerse,
+            undefined,
+            translation,
+            0.91,
+            rawText,
+            true
+          );
+          if (this.checkDedup(detected)) {
+            this.updateContext(detected);
+            return detected;
+          }
+        }
       }
     }
 
     return null;
   }
 
+  private isContextActive(): boolean {
+    if (!this.activeContext) return false;
+    const isNotExpired = (Date.now() - this.activeContext.timestamp) < this.contextExpiryMs;
+    return isNotExpired;
+  }
+
+  private updateContext(detected: DetectedVerse): void {
+    this.activeContext = {
+      book: detected.book,
+      chapter: detected.chapter,
+      lastVerse: detected.verseStart,
+      translation: detected.translation,
+      timestamp: Date.now()
+    };
+  }
+
   private isValidVerse(book: BookInfo, chapter: number, verseStart: number, verseEnd?: number): boolean {
     if (chapter < 1 || chapter > book.chapters) return false;
-    if (verseStart < 1 || verseStart > 176) return false; // Psalm 119 has 176 verses
+    if (verseStart < 1 || verseStart > 176) return false;
     if (verseEnd !== undefined && (verseEnd < verseStart || verseEnd > 176)) return false;
     return true;
   }
@@ -142,7 +247,8 @@ export class VerseDetector {
     verseEnd: number | undefined,
     translation: string | undefined,
     confidence: number,
-    rawText: string
+    rawText: string,
+    isContextual: boolean = false
   ): DetectedVerse {
     const id = `det_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     return {
@@ -154,7 +260,8 @@ export class VerseDetector {
       translation,
       confidence,
       rawText,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      isContextual
     };
   }
 
@@ -164,7 +271,7 @@ export class VerseDetector {
 
     if (this.lastDetectedVerse && this.lastDetectedVerse.key === key) {
       if (now - this.lastDetectedVerse.timestamp < this.dedupWindowMs) {
-        return false; // Suppress duplicate
+        return false;
       }
     }
 

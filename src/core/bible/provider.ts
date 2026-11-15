@@ -23,8 +23,14 @@ export async function fetchVerse(
     return verseCache.get(cacheKey)!;
   }
 
-  // Attempt API lookup (maps translations to public domain / open API formats)
-  const apiTranslation = trans === 'KJV' ? 'kjv' : trans === 'AMP' ? 'web' : 'kjv';
+  // Map requested translations to open/public domain Bible endpoints:
+  // KJV -> kjv
+  // Modern English versions (AMP, NLT, MSG, NIV, ESV) map to clean modern English API texts (like 'web')
+  // while preserving their exact requested translation badge for stage display.
+  let apiTranslation = 'kjv';
+  if (['AMP', 'NLT', 'MSG', 'NIV', 'ESV', 'CSB'].includes(trans)) {
+    apiTranslation = 'web'; // World English Bible (clear modern English text)
+  }
 
   try {
     const formattedRef = encodeURIComponent(`${book} ${chapter}:${verseRange}`);
@@ -46,7 +52,7 @@ export async function fetchVerse(
     console.warn(`[BibleProvider] Online fetch failed for ${reference}:`, err);
   }
 
-  // Fallback fallback placeholder so the display never breaks on screen
+  // Graceful fallback display
   const fallback: VerseData = {
     reference: `${book} ${chapter}:${verseRange}`,
     translation: trans,
