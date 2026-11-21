@@ -8,7 +8,7 @@ interface HistoryItem extends VerseData {
   time: string;
 }
 
-export default function App() {
+export default function App({ defaultTranslation: initialTranslation = 'KJV', churchName = '' }: { defaultTranslation?: string; churchName?: string }) {
   const [isListening, setIsListening] = useState(false);
   const [finalizedSpeech, setFinalizedSpeech] = useState<string>('');
   const [interimSpeech, setInterimSpeech] = useState<string>('');
@@ -25,7 +25,7 @@ export default function App() {
 
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [testSpeechInput, setTestSpeechInput] = useState('');
-  const [defaultTranslation, setDefaultTranslation] = useState('KJV');
+  const [defaultTranslation, setDefaultTranslation] = useState(initialTranslation);
 
   const detectorRef = useRef<VerseDetector>(new VerseDetector());
   const recognitionRef = useRef<any>(null);
@@ -289,7 +289,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <div>
             <h1 className="font-bold text-base tracking-tight flex items-center gap-2">
-              Lumen 
+              Lumen {churchName ? <span className="text-gray-400 font-normal text-sm">— {churchName}</span> : null}
             </h1>
           </div>
         </div>
