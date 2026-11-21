@@ -151,6 +151,22 @@
       word-wrap: break-word;
     }
 
+    /* Verse Background Images (rotate on each new verse) */
+    .verse-bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .verse-bg.active {
+      opacity: 1;
+    }
+
     /* Fallback Ambient CSS Glow Canvas (if no external video is loaded) */
     .ambient-canvas {
       position: absolute;
@@ -174,6 +190,10 @@
   <div class="media-layer">
     <!-- Ambient CSS fallback background -->
     <div id="ambientCanvas" class="ambient-canvas"></div>
+
+    <!-- Verse Background Images (rotate on each new verse) -->
+    <img id="verseBg0" class="verse-bg" src="/images/Black and Pink Gradient Motivational Quote Desktop Wallpaper.jpg" alt="">
+    <img id="verseBg1" class="verse-bg" src="/images/file_00000000f38481f488d574203354b86a.png" alt="">
 
     <!-- Background Video Motion Loop -->
     <video id="motionVideo" class="motion-video" autoplay loop muted playsinline></video>
@@ -205,6 +225,12 @@
     const citationText = document.getElementById('citationText');
     const translationBadge = document.getElementById('translationBadge');
     const verseBody = document.getElementById('verseBody');
+
+    const verseBgs = [
+      document.getElementById('verseBg0'),
+      document.getElementById('verseBg1')
+    ];
+    let currentBgIndex = -1; // -1 means none shown yet
 
     // Default media state
     let state = {
@@ -256,17 +282,22 @@
       // Auto-fit font size based on text length
       adjustFontSize(data.text.length);
 
-      // Hide idle sermon graphic, show motion video / ambient canvas, show scrim, fade in text
+      // Hide idle sermon graphic, show verse background image, show scrim, fade in text
       idleGraphic.classList.add('hidden');
       scrim.classList.add('active');
 
+      // Rotate to next verse background image
+      const nextBgIndex = (currentBgIndex + 1) % verseBgs.length;
+      if (currentBgIndex >= 0) verseBgs[currentBgIndex].classList.remove('active');
+      verseBgs[nextBgIndex].classList.add('active');
+      currentBgIndex = nextBgIndex;
+
+      // Only use motion video if explicitly configured, otherwise images handle the background
       if (state.motionLoopUrl) {
         motionVideo.src = state.motionLoopUrl;
         motionVideo.classList.add('active');
-        ambientCanvas.classList.remove('active');
-      } else {
-        ambientCanvas.classList.add('active');
       }
+      ambientCanvas.classList.remove('active');
 
       stageContent.classList.add('active');
       state.isVerseActive = true;
@@ -285,6 +316,11 @@
       scrim.classList.remove('active');
       motionVideo.classList.remove('active');
       ambientCanvas.classList.remove('active');
+
+      // Fade out the active verse background
+      if (currentBgIndex >= 0) {
+        verseBgs[currentBgIndex].classList.remove('active');
+      }
 
       // Return smoothly to the idle graphic
       setTimeout(() => {

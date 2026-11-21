@@ -68,10 +68,10 @@ export class DeepgramEngine extends EventEmitter {
       this.emit('error', err);
     };
 
-    socket.onclose = () => {
+    socket.onclose = (event: any) => {
       this.isConnected = false;
       this.ws = null;
-      this.emit('disconnected');
+      this.emit('disconnected', event?.code);
     };
   }
 

@@ -28,6 +28,10 @@ export class STTManager extends EventEmitter {
 
   private readonly stallThresholdMs: number;
   private readonly errorThreshold: number;
+  private reconnectAttempts = 0;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private static readonly MAX_RECONNECT_ATTEMPTS = 10;
+  private static readonly RECONNECT_BASE_MS = 3000;
 
   constructor(options: STTManagerOptions) {
     super();
@@ -74,6 +78,7 @@ export class STTManager extends EventEmitter {
   stop() {
     this.isRunning = false;
     if (this.stallCheckTimer) clearInterval(this.stallCheckTimer);
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.deepgram.disconnect();
     this.whisper.stop();
     this.activeEngine = 'none';
@@ -90,9 +95,10 @@ export class STTManager extends EventEmitter {
   private wireDeepgram() {
     this.deepgram.on('connected', () => {
       this.consecutiveErrors = 0;
+      this.reconnectAttempts = 0; // reset backoff on successful connect
+      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
       this.emit('status', { engine: 'deepgram', state: 'connected' });
 
-      // If we were on whisper, switch back silently
       if (this.activeEngine === 'whisper') {
         this.switchTo('deepgram', 'connection restored');
       } else {
@@ -114,15 +120,21 @@ export class STTManager extends EventEmitter {
       }
     });
 
-    this.deepgram.on('disconnected', () => {
+    this.deepgram.on('disconnected', (code?: number) => {
       this.emit('status', { engine: 'deepgram', state: 'disconnected' });
+
+      // Auth failure (4xx close codes) — stop retrying immediately
+      if (code && code >= 4000 && code < 5000) {
+        this.emit('status', { engine: 'deepgram', state: 'auth-error', message: 'Invalid API key — check DEEPGRAM_API_KEY in .env' });
+        console.error('[STTManager] Deepgram auth error — stopping reconnect attempts');
+        return;
+      }
+
       if (this.activeEngine === 'deepgram') {
         this.switchTo('whisper', 'connection dropped');
-        // Attempt to reconnect Deepgram in the background
-        setTimeout(() => {
-          if (this.isRunning) this.deepgram.connect();
-        }, 3000);
       }
+
+      this.scheduleReconnect();
     });
   }
 
@@ -143,6 +155,25 @@ export class STTManager extends EventEmitter {
     this.whisper.on('unavailable', (reason: string) => {
       this.emit('status', { engine: 'whisper', state: 'unavailable', message: reason });
     });
+  }
+
+  private scheduleReconnect() {
+    if (!this.isRunning) return;
+    if (this.reconnectAttempts >= STTManager.MAX_RECONNECT_ATTEMPTS) {
+      console.error('[STTManager] Max reconnect attempts reached — staying on Whisper fallback');
+      this.emit('status', { engine: 'deepgram', state: 'failed', message: 'Max reconnect attempts reached' });
+      return;
+    }
+
+    // Exponential backoff: 3s, 6s, 12s, 24s ... capped at 60s
+    const delay = Math.min(STTManager.RECONNECT_BASE_MS * 2 ** this.reconnectAttempts, 60000);
+    this.reconnectAttempts++;
+
+    console.log(`[STTManager] Reconnecting Deepgram in ${delay / 1000}s (attempt ${this.reconnectAttempts}/${STTManager.MAX_RECONNECT_ATTEMPTS})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      if (this.isRunning) this.deepgram.connect();
+    }, delay);
   }
 
   private switchTo(engine: STTEngineType, reason: string) {

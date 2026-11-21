@@ -121,12 +121,18 @@ export function normalizeTranscript(text: string): string {
     return num !== null ? `verse ${num}` : match;
   });
 
-  // Split STT-concatenated chapter+verse numbers (e.g. "john 1010" -> "john 10 10", "john 316" -> "john 3 16")
-  // Only applies when digits are NOT followed by punctuation or "verse" (those are handled by other patterns)
+  // Split STT-concatenated chapter+verse numbers (e.g. "john 316" -> "john 3 16", "john 1010" -> "john 10 10")
+  // Only applies when the number is NOT itself a valid standalone chapter for that book,
+  // and is NOT followed by punctuation or "verse" (those are handled by other patterns)
   lower = lower.replace(/([1-3]?\s*[a-z]+)\s+(\d{2,6})(?!\s*[,.:])(?!\s+verse)/g, (match, bookCandidate, digits) => {
     const book = resolveBook(bookCandidate.trim());
     if (!book) return match;
-    // Try all splits, prefer the one with the largest valid chapter (greedy chapter)
+
+    // If the number is a valid standalone chapter, leave it alone
+    const asChapter = parseInt(digits, 10);
+    if (asChapter >= 1 && asChapter <= book.chapters) return match;
+
+    // Otherwise try splitting into chapter + verse
     let best: { ch: number; v: number } | null = null;
     for (let i = 1; i < digits.length; i++) {
       const ch = parseInt(digits.slice(0, i), 10);
