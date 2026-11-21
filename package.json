@@ -63,6 +63,9 @@
     "appId": "com.lumen.stageled",
     "productName": "Lumen",
     "copyright": "Copyright © 2024",
+    "directories": {
+      "output": "dist-installers"
+    },
     "files": [
       "dist/**/*",
       "node_modules/**/*"

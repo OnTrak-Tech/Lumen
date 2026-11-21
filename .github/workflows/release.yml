@@ -1,0 +1,103 @@
+name: Build & Release Lumen
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'   # triggers on version tags like v1.0.0, v1.2.3
+
+permissions:
+  contents: write  # needed to create GitHub Releases
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            artifact: dist-installers/*.exe
+          - os: macos-latest
+            platform: mac
+            artifact: dist-installers/*.dmg
+          - os: ubuntu-latest
+            platform: linux
+            artifact: dist-installers/*.AppImage
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Linux requires these libraries for Electron
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package installer
+        run: npm run dist:${{ matrix.platform }} -- --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Tell electron-builder where to put the output
+          ELECTRON_BUILDER_OUTPUT_DIR: dist-installers
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumen-${{ matrix.platform }}
+          path: dist-installers/
+          retention-days: 5
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: installers/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lumen ${{ github.ref_name }}
+          body: |
+            ## Lumen ${{ github.ref_name }}
+
+            ### Download
+            | Platform | File |
+            |---|---|
+            | Windows | `Lumen Setup *.exe` |
+            | macOS | `Lumen *.dmg` |
+            | Linux | `Lumen *.AppImage` |
+
+            ### Installation
+            - **Windows** — Run the `.exe` installer
+            - **macOS** — Open the `.dmg` and drag Lumen to Applications
+            - **Linux** — Make the `.AppImage` executable and run it
+
+            ### OBS Setup
+            After installing, add a Browser Source in OBS pointing to `http://localhost:3000/stage` at 1920×1080.
+          files: installers/**/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
