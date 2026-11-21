@@ -283,9 +283,9 @@ export default function App() {
   const currentLiveSpeech = `${finalizedSpeech} ${interimSpeech}`.trim();
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen flex flex-col bg-white text-gray-900 font-sans selection:bg-amber-500 selection:text-white">
       {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur px-6 py-3.5 flex items-center justify-between shadow-sm">
+      <header className="border-b border-gray-200 bg-white backdrop-blur px-6 py-3.5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3">
           <div>
             <h1 className="font-bold text-base tracking-tight flex items-center gap-2">
@@ -302,8 +302,8 @@ export default function App() {
               onClick={toggleListening}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition ${
                 isListening
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 animate-pulse'
-                  : 'bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700'
+                  ? 'bg-emerald-500/20 text-emerald-700 border border-emerald-500/50 animate-pulse'
+                  : 'bg-black text-white border border-black hover:bg-gray-800'
               }`}
             >
               {isListening ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
@@ -313,14 +313,14 @@ export default function App() {
 
           {/* Mode Selector */}
           <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-xs">Mode:</span>
-            <div className="inline-flex rounded-lg bg-slate-800/90 p-0.5 border border-slate-700/80 text-xs">
+            <span className="text-gray-500 text-xs">Mode:</span>
+            <div className="inline-flex rounded-lg bg-gray-100 p-0.5 border border-gray-300 text-xs">
               {(['auto', 'manual'] as const).map((m) => (
                 <button
                   key={m}
                   onClick={() => setMode(m)}
                   className={`px-3 py-1 rounded-md capitalize transition ${
-                    mode === m ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
+                    mode === m ? 'bg-black text-white font-bold shadow' : 'text-gray-500 hover:text-gray-900'
                   }`}
                 >
                   {m}
@@ -331,11 +331,11 @@ export default function App() {
 
           {/* Default Translation */}
           {/* <div className="flex items-center gap-2">
-            <span className="text-slate-400 text-xs">Default:</span>
+            <span className="text-gray-500 text-xs">Default:</span>
             <select
               value={defaultTranslation}
               onChange={(e) => setDefaultTranslation(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-md px-2 py-1 text-xs text-slate-200 focus:outline-none"
+              className="bg-gray-100 border border-gray-300 rounded-md px-2 py-1 text-xs text-gray-800 focus:outline-none"
             >
               {['KJV', 'AMP', 'NIV', 'ESV', 'NKJV', 'NLT', 'MSG', 'NASB', 'CSB'].map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -349,26 +349,26 @@ export default function App() {
       <main className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl mx-auto w-full items-start">
         {/* Left Column: Live Speech Monitor (Auto-clears after 20s of silence) */}
         <section className="lg:col-span-4 flex flex-col gap-4">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col shadow-sm">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <Volume2 className="w-3.5 h-3.5 text-amber-400" /> Live Speech Monitor
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                <Volume2 className="w-3.5 h-3.5 text-gray-500" /> Live Speech Monitor
               </h2>
               <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${isListening ? 'bg-emerald-400 animate-ping' : 'bg-slate-600'}`}></span>
-                <span className="text-[11px] text-slate-400">{isListening ? 'Live Stream' : 'Standby'}</span>
+                <span className={`w-2 h-2 rounded-full ${isListening ? 'bg-emerald-400 animate-ping' : 'bg-gray-300'}`}></span>
+                <span className="text-[11px] text-gray-500">{isListening ? 'Live Stream' : 'Standby'}</span>
               </div>
             </div>
 
             {/* Speech Monitor Box */}
-            <div className="min-h-[160px] max-h-[220px] overflow-hidden p-4 rounded-lg bg-slate-950/80 border border-slate-800/80 flex flex-col justify-end">
+            <div className="min-h-[160px] max-h-[220px] overflow-hidden p-4 rounded-lg bg-gray-100 border border-gray-200 flex flex-col justify-end">
               {currentLiveSpeech ? (
-                <p className="text-sm text-slate-200 leading-relaxed font-sans font-medium">
-                  <span className="text-slate-500 mr-2 text-xs">...</span>
-                  {finalizedSpeech} {interimSpeech && <span className="text-amber-400/90">{interimSpeech}</span>}
+                <p className="text-sm text-gray-800 leading-relaxed font-sans font-medium">
+                  <span className="text-gray-400 mr-2 text-xs">...</span>
+                  {finalizedSpeech} {interimSpeech && <span className="text-gray-500">{interimSpeech}</span>}
                 </p>
               ) : (
-                <p className="text-slate-500 italic text-xs text-center py-8">
+                <p className="text-gray-400 italic text-xs text-center py-8">
                   {isListening ? 'Listening to preacher in real-time...' : 'Microphone is standby. Click "Start Mic" or test below.'}
                 </p>
               )}
@@ -381,11 +381,11 @@ export default function App() {
                 placeholder='Type to test: "Matthew 1:1 Amplified"'
                 value={testSpeechInput}
                 onChange={(e) => setTestSpeechInput(e.target.value)}
-                className="flex-1 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 transition"
+                className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-1.5 text-xs text-gray-800 focus:outline-none focus:border-amber-500 transition"
               />
               <button
                 type="submit"
-                className="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                className="bg-black hover:bg-gray-800 text-white border border-black px-3 py-1.5 rounded-lg text-xs font-semibold transition"
               >
                 Speak
               </button>
@@ -393,19 +393,19 @@ export default function App() {
           </div>
 
           {/* Stage Media Canvas Settings */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
               Stage LED Canvas Mode
             </h2>
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="text-slate-400 block mb-1.5 text-[11px]">Idle Backdrop (When No Verse is Live):</label>
-                <div className="grid grid-cols-2 gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <label className="text-gray-500 block mb-1.5 text-[11px]">Idle Backdrop (When No Verse is Live):</label>
+                <div className="grid grid-cols-2 gap-1.5 bg-white p-1 rounded-lg border border-gray-200">
                   <button
                     onClick={() => handleUpdateConfig('graphic')}
                     className={`py-1.5 px-2 rounded font-medium flex items-center justify-center gap-1.5 transition text-xs ${
-                      idleMode === 'graphic' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
+                      idleMode === 'graphic' ? 'bg-black text-white font-bold shadow' : 'text-gray-500 hover:text-gray-800'
                     }`}
                   >
                     <Image className="w-3.5 h-3.5" /> Sermon Slide
@@ -413,7 +413,7 @@ export default function App() {
                   <button
                     onClick={() => handleUpdateConfig('motion')}
                     className={`py-1.5 px-2 rounded font-medium flex items-center justify-center gap-1.5 transition text-xs ${
-                      idleMode === 'motion' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-400 hover:text-slate-200'
+                      idleMode === 'motion' ? 'bg-black text-white font-bold shadow' : 'text-gray-500 hover:text-gray-800'
                     }`}
                   >
                     <Video className="w-3.5 h-3.5" /> Motion Loop
@@ -422,13 +422,13 @@ export default function App() {
               </div>
 
               <div>
-                <label className="text-slate-400 block mb-1 text-[11px]">Custom Video Motion Loop URL (Optional):</label>
+                <label className="text-gray-500 block mb-1 text-[11px]">Custom Video Motion Loop URL (Optional):</label>
                 <input
                   type="text"
                   placeholder="URL to MP4 / WebM video loop"
                   value={motionLoopUrl}
                   onChange={(e) => handleUpdateConfig(undefined, undefined, e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-amber-500 transition"
+                  className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-amber-500 transition"
                 />
               </div>
             </div>
@@ -439,29 +439,29 @@ export default function App() {
         <section className="lg:col-span-5 flex flex-col gap-4">
           {/* LIVE ON STAGE LED WALL CARD */}
           <div className={`border rounded-xl p-5 transition-all duration-300 ${
-            activeStageVerse ? 'bg-amber-950/20 border-amber-500/50 shadow-lg shadow-amber-950/20' : 'bg-slate-900/90 border-slate-800'
+            activeStageVerse ? 'bg-gray-50 border-black shadow-lg' : 'bg-gray-50 border-gray-200'
           }`}>
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
               <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${activeStageVerse ? 'bg-emerald-400 animate-pulse' : 'bg-slate-600'}`}></span>
+                <span className={`w-2.5 h-2.5 rounded-full ${activeStageVerse ? 'bg-emerald-400 animate-pulse' : 'bg-gray-300'}`}></span>
                 {activeStageVerse ? (
                   <span className="text-emerald-400">Live on Stage LED Wall</span>
                 ) : (
-                  <span className="text-slate-400">Stage Wall Idle (Sermon Graphic)</span>
+                  <span className="text-gray-500">Stage Wall Idle (Sermon Graphic)</span>
                 )}
               </span>
 
               {activeStageVerse && (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 font-mono text-xs text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded border border-amber-500/30">
+                  <div className="flex items-center gap-1 font-mono text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded border border-gray-300">
                     <Clock className="w-3 h-3" />
                     <span>{formatTimer(stageElapsedSeconds)}</span>
-                    <span className="text-slate-500">/ 05:00 max</span>
+                    <span className="text-gray-400">/ 05:00 max</span>
                   </div>
 
                   <button
                     onClick={clearStageDisplay}
-                    className="text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 px-2.5 py-1 rounded font-semibold transition"
+                    className="text-xs bg-black hover:bg-gray-800 text-white border border-black px-2.5 py-1 rounded font-semibold transition"
                   >
                     Clear Stage
                   </button>
@@ -471,38 +471,38 @@ export default function App() {
 
             {/* Progress bar towards 5-minute safety ceiling */}
             {activeStageVerse && (
-              <div className="w-full bg-slate-800 h-1 rounded-full mb-3 overflow-hidden">
+              <div className="w-full bg-gray-100 h-1 rounded-full mb-3 overflow-hidden">
                 <div
-                  className="bg-amber-500 h-full transition-all duration-1000"
+                  className="bg-black h-full transition-all duration-1000"
                   style={{ width: `${(stageElapsedSeconds / STAGE_MAX_SECONDS) * 100}%` }}
                 ></div>
               </div>
             )}
 
             {activeStageVerse ? (
-              <div className="bg-slate-950/90 border border-slate-800/80 rounded-lg p-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center gap-2.5 mb-2">
-                  <span className="font-black text-amber-400 text-lg tracking-wide uppercase">{activeStageVerse.reference}</span>
-                  <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="font-black text-gray-900 text-lg tracking-wide uppercase">{activeStageVerse.reference}</span>
+                  <span className="bg-gray-100 text-gray-700 border border-gray-300 text-xs font-bold px-2 py-0.5 rounded-full">
                     {activeStageVerse.translation}
                   </span>
                 </div>
-                <p className="text-slate-100 text-sm font-sans font-semibold leading-relaxed line-clamp-4">
+                <p className="text-gray-900 text-sm font-sans font-semibold leading-relaxed line-clamp-4">
                   "{activeStageVerse.text}"
                 </p>
               </div>
             ) : (
-              <div className="py-7 flex flex-col items-center justify-center text-slate-500 text-xs gap-1.5">
-                <Image className="w-6 h-6 text-slate-600 mb-1" />
+              <div className="py-7 flex flex-col items-center justify-center text-gray-400 text-xs gap-1.5">
+                <Image className="w-6 h-6 text-gray-400 mb-1" />
                 <span>LED wall is currently showing the Sermon Graphic</span>
-                <span className="text-[11px] text-slate-600">Crossfades instantly to motion background when scripture is triggered</span>
+                <span className="text-[11px] text-gray-400">Crossfades instantly to motion background when scripture is triggered</span>
               </div>
             )}
           </div>
 
           {/* Pending Detected Verse Card (Approval Queue) */}
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 shadow-sm">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 pb-2 border-b border-slate-800 flex items-center justify-between">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 pb-2 border-b border-gray-200 flex items-center justify-between">
               <span>Detected Verse (Approval Queue)</span>
               {mode === 'auto' && (
                 <span className="text-emerald-400 text-[11px] font-normal lowercase">(Auto-broadcast active)</span>
@@ -513,21 +513,21 @@ export default function App() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold text-slate-100">{versePreview.reference}</span>
-                    <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold px-2 py-0.5 rounded">
+                    <span className="text-lg font-bold text-gray-900">{versePreview.reference}</span>
+                    <span className="bg-gray-100 text-gray-700 border border-gray-300 text-xs font-semibold px-2 py-0.5 rounded">
                       {versePreview.translation}
                     </span>
                   </div>
                 </div>
 
-                <div className="bg-slate-950 p-3.5 rounded-lg border border-slate-800 text-sm font-medium text-slate-200 leading-relaxed max-h-36 overflow-y-auto">
+                <div className="bg-white p-3.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-800 leading-relaxed max-h-36 overflow-y-auto">
                   "{versePreview.text}"
                 </div>
 
                 <div className="flex gap-2 pt-1">
                   <button
                     onClick={() => sendToStage(versePreview)}
-                    className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 text-sm transition shadow-lg shadow-amber-500/10"
+                    className="flex-1 bg-black hover:bg-gray-800 text-white font-bold py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 text-sm transition shadow-lg"
                   >
                     <CheckCircle className="w-4 h-4" /> Send to Stage LED Wall
                   </button>
@@ -536,14 +536,14 @@ export default function App() {
                       setVersePreview(null);
                       setDetectedVerse(null);
                     }}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 px-3 rounded-lg flex items-center justify-center text-sm transition"
+                    className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2.5 px-3 rounded-lg flex items-center justify-center text-sm transition"
                   >
                     <XCircle className="w-4 h-4" />
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="py-6 text-center text-slate-500 text-xs italic">
+              <div className="py-6 text-center text-gray-400 text-xs italic">
                 Waiting for preacher to mention scripture (e.g. "Romans 8:28, New International Version")...
               </div>
             )}
@@ -552,13 +552,13 @@ export default function App() {
 
         {/* Right Column: Compact Broadcast Log (Sermon History) */}
         <section className="lg:col-span-3 flex flex-col">
-          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col shadow-sm">
-            <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col shadow-sm">
+            <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-200">
               <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">
                   Sermon Log
                 </h2>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-gray-100 text-gray-500 border border-gray-300">
                   {history.length}
                 </span>
               </div>
@@ -566,7 +566,7 @@ export default function App() {
                 <button
                   onClick={clearHistory}
                   title="Clear history"
-                  className="text-slate-500 hover:text-red-400 transition p-1"
+                  className="text-gray-400 hover:text-red-400 transition p-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -576,17 +576,17 @@ export default function App() {
             {/* Compact Fixed-Height Timeline */}
             <div className="overflow-y-auto max-h-[500px] space-y-1.5 pr-1 text-xs">
               {history.length === 0 ? (
-                <p className="text-slate-500 italic text-xs py-8 text-center">No verses projected yet</p>
+                <p className="text-gray-400 italic text-xs py-8 text-center">No verses projected yet</p>
               ) : (
                 history.map((item, idx) => (
                   <div
                     key={idx}
-                    className="group bg-slate-950/70 hover:bg-slate-950 p-2.5 rounded-lg border border-slate-800/80 hover:border-slate-700 flex items-center justify-between transition"
+                    className="group bg-gray-50 hover:bg-white p-2.5 rounded-lg border border-gray-200 hover:border-gray-300 flex items-center justify-between transition"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-[10px] font-mono text-slate-500 shrink-0">{item.time}</span>
-                      <span className="font-bold text-slate-200 truncate">{item.reference}</span>
-                      <span className="text-[10px] font-bold text-amber-400/90 bg-amber-500/10 px-1 py-0.2 rounded shrink-0">
+                      <span className="text-[10px] font-mono text-gray-400 shrink-0">{item.time}</span>
+                      <span className="font-bold text-gray-800 truncate">{item.reference}</span>
+                      <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-1 py-0.2 rounded shrink-0">
                         {item.translation}
                       </span>
                     </div>
@@ -594,7 +594,7 @@ export default function App() {
                     <button
                       onClick={() => sendToStage(item)}
                       title="Re-project to Stage LED Wall"
-                      className="p-1 rounded text-slate-500 group-hover:text-amber-400 hover:bg-slate-800 transition shrink-0 ml-2"
+                      className="p-1 rounded text-gray-400 group-hover:text-gray-900 hover:bg-gray-100 transition shrink-0 ml-2"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                     </button>
