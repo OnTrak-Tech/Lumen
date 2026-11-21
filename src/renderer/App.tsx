@@ -447,7 +447,7 @@ export default function App({ defaultTranslation: initialTranslation = 'KJV', ch
                 {activeStageVerse ? (
                   <span className="text-emerald-400">Live on Stage LED Wall</span>
                 ) : (
-                  <span className="text-gray-500">Stage Wall Idle (Sermon Graphic)</span>
+                  <span className="text-gray-500">Live Stage Display</span>
                 )}
               </span>
 
